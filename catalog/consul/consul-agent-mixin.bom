@@ -1,0 +1,48 @@
+brooklyn.catalog:
+  items:
+
+    - id: consul-agent-mixin
+      name: Consul Agent mixin
+      description: Hashicorp Consul agent mixin
+      itemType: entity
+      item:
+        name: Consul Agent
+        type: consul-agent
+        brooklyn.parameters:
+          - name: consul.serverReference
+            description: Reference to a Consul server entity
+            constraints: [ required ]
+          - name: consul.http.port
+            description: Port number of the Consul HTTP service
+            type: port
+            default: 8500
+          - name: consul.https.port
+            description: Port number of the Consul HTTP service
+            type: port
+          - name: consul.dns.port
+            description: Port number of the Consul DNS service
+            type: port
+            default: 8600
+          - name: consul.server.port
+            description: Port number of the Consul server RPC service
+            type: port
+            default: 8300
+          - name: consul.serf_lan.port
+            description: Port number of the Consul Serf LAN service
+            type: port
+            default: 8301
+          - name: consul.serf_wan.port
+            description: Port number of the Consul Serf WAN service
+            type: port
+            default: 8302
+        brooklyn.config:
+          consul.node.id: $brooklyn:component("parent", "").attributeWhenReady("entity.id")
+          consul.join1: $brooklyn:config("consul.serverReference")
+          consul.join2: $brooklyn:entity(config("consul.serverReference"))
+          consul.join3: $brooklyn:component(config("consul.serverReference"))
+          consul.join4: $brooklyn:config("consul.serverReference").attributeWhenReady("entity.id")
+          consul.join5: $brooklyn:entity(config("consul.serverReference")).attributeWhenReady("entity.id")
+          consul.join6: $brooklyn:component(config("consul.serverReference")).attributeWhenReady("entity.id")
+          consul.join: $brooklyn:entity(config("consul.serverReference")).attributeWhenReady("host.subnet.address")
+          consul.server: false
+          launch.latch: $brooklyn:entity(config("consul.serverReference")).attributeWhenReady("service.isUp")

@@ -1,0 +1,7 @@
+brooklyn.catalog:
+  bundle: brooklyn-consul
+  version: 0.1.0-SNAPSHOT
+  items:
+    - "classpath://consul/consul-agent.bom"
+    - "classpath://consul/consul-server-cluster.bom"
+    - "classpath://consul/consul-agent-mixin.bom"

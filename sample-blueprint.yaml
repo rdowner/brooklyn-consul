@@ -1,0 +1,11 @@
+location: vagrant-virtualbox
+services:
+- type: consul-server-cluster
+  name: Consul Server Cluster
+  id: consul-server-cluster
+  brooklyn.config:
+    initialSize: 2
+- type: consul-agent-mixin
+  id: consul-agent-mixin
+  brooklyn.config:
+    consul.serverReference: $brooklyn:entity("consul-server-cluster").attributeWhenReady("cluster.first.entity")

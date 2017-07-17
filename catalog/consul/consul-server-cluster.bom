@@ -1,0 +1,51 @@
+brooklyn.catalog:
+  items:
+
+    - id: consul-server-cluster
+      name: Consul server cluster
+      description: Cluster of Hashicorp Consul servers
+      itemType: entity
+      item:
+        type: org.apache.brooklyn.entity.group.DynamicCluster
+        brooklyn.parameters:
+          - name: consul.http.port
+            description: Port number of the Consul HTTP service
+            type: port
+            default: 8500
+          - name: consul.https.port
+            description: Port number of the Consul HTTP service
+            type: port
+          - name: consul.dns.port
+            description: Port number of the Consul DNS service
+            type: port
+            default: 8600
+          - name: consul.server.port
+            description: Port number of the Consul server RPC service
+            type: port
+            default: 8300
+          - name: consul.serf_lan.port
+            description: Port number of the Consul Serf LAN service
+            type: port
+            default: 8301
+          - name: consul.serf_wan.port
+            description: Port number of the Consul Serf WAN service
+            type: port
+            default: 8302
+        brooklyn.config:
+          firstMemberSpec:
+            $brooklyn:entitySpec:
+              type: consul-agent
+              id: consul-first-server
+              name: Consul Server (bootstrap)
+              brooklyn.config:
+                consul.node.id: $brooklyn:attributeWhenReady("entity.id")
+                consul.server: true
+          memberSpec:
+            $brooklyn:entitySpec:
+              type: consul-agent
+              name: Consul Server (non-bootstrap)
+              brooklyn.config:
+                consul.node.id: $brooklyn:attributeWhenReady("entity.id")
+                consul.server: true
+                consul.join: $brooklyn:component("parent", "").attributeWhenReady("cluster.first.entity").attributeWhenReady("host.subnet.address")
+                launch.latch: $brooklyn:component("parent", "").attributeWhenReady("cluster.first.entity").attributeWhenReady("service.isUp")

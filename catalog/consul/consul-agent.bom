@@ -1,0 +1,82 @@
+brooklyn.catalog:
+  items:
+
+    - id: consul-agent
+      name: Consul agent
+      description: Hashicorp Consul agent
+      itemType: entity
+      item:
+        type: org.apache.brooklyn.entity.software.base.VanillaSoftwareProcess
+        brooklyn.parameters:
+          - name: consul.node.id
+            description: the Consul node ID
+          - name: consul.server
+            description: true if this agent is a server, false if it is a client
+            default: false
+          - name: consul.join
+            description: address of another Consul agent that this agent should try to join. If absent, agent will not attempt a join.
+            default: ""
+          - name: consul.http.port
+            description: Port number of the Consul HTTP service
+            type: port
+            default: 8500
+          - name: consul.https.port
+            description: Port number of the Consul HTTP service
+            type: port
+          - name: consul.dns.port
+            description: Port number of the Consul DNS service
+            type: port
+            default: 8600
+          - name: consul.server.port
+            description: Port number of the Consul server RPC service
+            type: port
+            default: 8300
+          - name: consul.serf_lan.port
+            description: Port number of the Consul Serf LAN service
+            type: port
+            default: 8301
+          - name: consul.serf_wan.port
+            description: Port number of the Consul Serf WAN service
+            type: port
+            default: 8302
+        brooklyn.config:
+          download.url: >-
+            https://releases.hashicorp.com/consul/${version}/consul_${version}_linux_amd64.zip
+          install.version: 0.8.5
+          shell.env:
+            BIND_ADDRESS: $brooklyn:attributeWhenReady("host.subnet.address")
+            SERVER: $brooklyn:config("consul.server")
+            JOIN: $brooklyn:config("consul.join")
+          templates.customize:
+            classpath://consul/brooklyn-consul-config.json: brooklyn-consul-config.json
+          customize.command: |
+            mkdir -p "${RUN_DIR}/data" "${RUN_DIR}/consul.d"
+            cp "${INSTALL_DIR}/brooklyn-consul-config.json" "${RUN_DIR}/consul.d/brooklyn-consul-config.json"
+          launch.command: |
+            set -x
+
+            # Build up arguments
+            args=(agent -config-dir="${RUN_DIR}/consul.d" -pid-file="${PID_FILE}")
+            if [ "${SERVER}" = "true" ]; then args+=(-server); fi
+            if [ "${SERVER}" = "true" -a "${JOIN}" = "" ]; then args+=(-bootstrap); fi
+
+            # Start process and note pid
+            "${RUN_DIR}/consul" "${args[@]}" 2>&1 > "${RUN_DIR}/console.log" &
+            pid=$!
+
+            # Wait for a few seconds for process to start in the background
+            sleep 5s
+
+            if jobs %% ; then
+              # Background process is still running, which means it has probably not hit a terminal error during startup
+              if [ '!' -z "${JOIN}" ] ; then
+                "${RUN_DIR}/consul" join "${JOIN}" || exit $?
+              fi
+              # Disown the background process (so it does not stop when this shell session ends) and successful result
+              disown %%
+              exit 0
+            else
+              # Get the failure code, and return it
+              wait $pid
+              exit $?
+            fi

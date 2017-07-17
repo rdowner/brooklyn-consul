@@ -1,0 +1,19 @@
+{
+<#if config['consul.node.id']??>
+  "node_name": "${config['consul.node.id']}",
+</#if>
+  "data_dir": "${attribute['run.dir']}/data",
+  "bind_addr": "${attribute['host.subnet.address']}",
+  "advertise_addr_wan": "${attribute['host.address']}",
+  "server": ${config['consul.server']},
+  "ports": {
+    "dns": ${config['consul.dns.port']},
+    "http": ${config['consul.http.port']},
+<#if config['consul.https.port']??>
+    "https": ${config['consul.https.port']},
+</#if>
+    "server": ${config['consul.server.port']},
+    "serf_lan": ${config['consul.serf_lan.port']},
+    "serf_wan": ${config['consul.serf_wan.port']}
+  }
+}
