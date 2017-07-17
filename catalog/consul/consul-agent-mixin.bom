@@ -9,7 +9,7 @@ brooklyn.catalog:
         name: Consul Agent
         type: consul-agent
         brooklyn.parameters:
-          - name: consul.serverReference
+          - name: consul.joinToken
             description: Reference to a Consul server entity
             constraints: [ required ]
           - name: consul.http.port
@@ -37,12 +37,6 @@ brooklyn.catalog:
             default: 8302
         brooklyn.config:
           consul.node.id: $brooklyn:component("parent", "").attributeWhenReady("entity.id")
-          consul.join1: $brooklyn:config("consul.serverReference")
-          consul.join2: $brooklyn:entity(config("consul.serverReference"))
-          consul.join3: $brooklyn:component(config("consul.serverReference"))
-          consul.join4: $brooklyn:config("consul.serverReference").attributeWhenReady("entity.id")
-          consul.join5: $brooklyn:entity(config("consul.serverReference")).attributeWhenReady("entity.id")
-          consul.join6: $brooklyn:component(config("consul.serverReference")).attributeWhenReady("entity.id")
-          consul.join: $brooklyn:entity(config("consul.serverReference")).attributeWhenReady("host.subnet.address")
+          consul.join: $brooklyn:entity(config("consul.joinToken")).attributeWhenReady("host.subnet.address")
           consul.server: false
-          launch.latch: $brooklyn:entity(config("consul.serverReference")).attributeWhenReady("service.isUp")
+          launch.latch: $brooklyn:entity(config("consul.joinToken")).attributeWhenReady("service.isUp")

@@ -49,3 +49,9 @@ brooklyn.catalog:
                 consul.server: true
                 consul.join: $brooklyn:component("parent", "").attributeWhenReady("cluster.first.entity").attributeWhenReady("host.subnet.address")
                 launch.latch: $brooklyn:component("parent", "").attributeWhenReady("cluster.first.entity").attributeWhenReady("service.isUp")
+        brooklyn.enrichers:
+          - type: org.apache.brooklyn.enricher.stock.Transformer
+            brooklyn.config:
+              enricher.sourceSensor: $brooklyn:sensor("cluster.first.entity")
+              enricher.targetSensor: $brooklyn:sensor("consul.joinToken")
+              enricher.targetValue: $brooklyn:entity(attributeWhenReady("cluster.first.entity")).attributeWhenReady("entity.id")

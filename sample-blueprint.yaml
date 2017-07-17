@@ -5,7 +5,11 @@ services:
   id: consul-server-cluster
   brooklyn.config:
     initialSize: 2
-- type: consul-agent-mixin
-  id: consul-agent-mixin
+- type: server
   brooklyn.config:
-    consul.serverReference: $brooklyn:entity("consul-server-cluster").attributeWhenReady("cluster.first.entity")
+    children.startable.mode: foreground
+  brooklyn.children:
+    - type: consul-agent-mixin
+      id: consul-agent-mixin
+      brooklyn.config:
+        consul.joinToken: $brooklyn:entity("consul-server-cluster").attributeWhenReady("consul.joinToken")
