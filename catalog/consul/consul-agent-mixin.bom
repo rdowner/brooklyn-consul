@@ -40,3 +40,13 @@ brooklyn.catalog:
           consul.join: $brooklyn:entity(config("consul.joinToken")).attributeWhenReady("host.subnet.address")
           consul.server: false
           launch.latch: $brooklyn:entity(config("consul.joinToken")).attributeWhenReady("service.isUp")
+          files.install:
+            classpath://consul/dnsmasq-consul.conf: dnsmasq-consul.conf
+            classpath://consul/networkmanager-consul.conf: networkmanager-consul.conf
+          install.command: |
+            sudo yum install -y bind-utils # provides dig. not required, but could be useful.
+            sudo yum install -y dnsmasq
+            sudo systemctl disable dnsmasq; sudo systemctl stop dnsmasq # NetworkManager will manage dnsmasq for us
+            sudo install "${INSTALL_DIR}/dnsmasq-consul.conf" "/etc/NetworkManager/dnsmasq.d/10-consul.conf"
+            sudo install "${INSTALL_DIR}/networkmanager-consul.conf" "/etc/NetworkManager/conf.d/10-consul.conf"
+            sudo systemctl restart NetworkManager

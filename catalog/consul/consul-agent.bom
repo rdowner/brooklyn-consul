@@ -47,6 +47,7 @@ brooklyn.catalog:
             BIND_ADDRESS: $brooklyn:attributeWhenReady("host.subnet.address")
             SERVER: $brooklyn:config("consul.server")
             JOIN: $brooklyn:config("consul.join")
+            DNS_SERVER_PORT: $brooklyn:formatString("%s", config("consul.dns.port"))
           templates.customize:
             classpath://consul/brooklyn-consul-config.json: brooklyn-consul-config.json
           customize.command: |
