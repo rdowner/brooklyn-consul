@@ -1,15 +1,75 @@
+# A demonstration of the Consul catalog items. After loading the catalog items into Apache Brooklyn, you should be able
+# to deploy this blueprint modifying only the location. The blueprint stands up a MySQL database server and a Node.js
+# web server. The web app locates the database server simply by using a DNS name - the Consul DNS resolver will supply
+# the dynamic IP address of the database server at run-time.
+
+# Change this location
 location: vagrant-virtualbox
+
 services:
+
+# Instantiate a Consul server cluster. This cluster has 3 members.
 - type: consul-server-cluster
   name: Consul Server Cluster
   id: consul-server-cluster
   brooklyn.config:
-    initialSize: 2
-- type: server
+    initialSize: 3
+
+# Instantiate a MySQL entity.
+- type: org.apache.brooklyn.entity.database.mysql.MySqlNode
   brooklyn.config:
+    datastore.creation.script.url: https://raw.githubusercontent.com/cloudsoft/todo-mvc/master/server/db-creation-script.sql
+
+    # Normal so far, but here's where it gets slightly different. Firstly we ensure curl is installed - it almost
+    # certainly is already installed, but no harm in checking.
+    post.install.command: |
+      sudo yum install -y curl
+    # This option makes the consul agent child entity start in parallel with this one.
     children.startable.mode: foreground
+    # We pause before the launch phase to ensure that the consul agent child entity has started fully
+    launch.latch: $brooklyn:component("descendant", "consul-agent-mixin").attributeWhenReady("service.isUp")
+    # We set a post-launch command to register our service into consul. We do this by creating a small JSON document
+    # and using curl to send it to the Consul HTTP API on localhost. Consul will distribute this throughout the Consul
+    # cluster so that other Consul agents may use it.
+    post.launch.command: |
+      echo '{"name": "mysql", "tags": ["todo"], "port": 3306}' > "${RUN_DIR:-/tmp}/register-service.json"
+      curl -v --request PUT --data "@${RUN_DIR:-/tmp}/register-service.json" http://localhost:8500/v1/agent/service/register --header "Content-type: application/json"
+  # A child entity for the consul agent mixin. The mixin is specifically designed to be used like this; it augments the
+  # VM so it is integrated into the Consul cluster.
   brooklyn.children:
     - type: consul-agent-mixin
       id: consul-agent-mixin
       brooklyn.config:
+        # We link the `consul.joinToken` config key to the consul.joinToken` sensor on the Consul server cluster
+        consul.joinToken: $brooklyn:entity("consul-server-cluster").attributeWhenReady("consul.joinToken")
+
+# Instantiate a web server, in this case a node.js server.
+- type: org.apache.brooklyn.entity.webapp.nodejs.NodeJsWebAppService
+  brooklyn.config:
+    # Configuration for the todo-mvc app (borrowed from Cloudsoft)
+    http.port: 8000
+    nodejs.gitRepo.url: 'https://github.com/cloudsoft/todo-mvc.git'
+    nodejs.app.name: todo
+    nodejs.app.fileName: app.js
+    shell.env:
+      METRICS_PORT: 8091
+      # Notice here that the reference to the MySQL entity is not injected by Brooklyn as you would normally expect -
+      # instead we use the Consul DNS query service to locate MySQL. The consul-agent-mixin child entity has configured
+      # the system DNS service for us, so it should JustWork(tm)
+      DB_HOST: 'todo.mysql.service.consul'
+      DB_PORT: 3306
+      DB_USER: 'brooklyn'
+      DB_PASSWORD: 'br00k11n'
+      DB_NAME: 'todo'
+    # This option makes the consul agent child entity start in parallel with this one.
+    children.startable.mode: foreground
+    # We pause before the launch phase to ensure that the consul agent child entity has started fully
+    launch.latch: $brooklyn:component("descendant", "consul-agent-mixin").attributeWhenReady("service.isUp")
+  # A child entity for the consul agent mixin. The mixin is specifically designed to be used like this; it augments the
+  # VM so it is integrated into the Consul cluster.
+  brooklyn.children:
+    - type: consul-agent-mixin
+      id: consul-agent-mixin
+      brooklyn.config:
+        # We link the `consul.joinToken` config key to the consul.joinToken` sensor on the Consul server cluster
         consul.joinToken: $brooklyn:entity("consul-server-cluster").attributeWhenReady("consul.joinToken")
